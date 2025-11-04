@@ -11,7 +11,7 @@ exports.handler = async function(event) {
 
     const VA = process.env.IPAYMU_VA;
     const APIKEY = process.env.IPAYMU_APIKEY;
-    const BASE_URL = process.env.IPAYMU_BASE_URL || "https://sandbox.ipaymu.com/api/v2/payment";
+    const BASE_URL = process.env.IPAYMU_BASE_URL || "";
     const URL = `${BASE_URL}/status`;
 
     // Body sesuai dokumentasi iPaymu
