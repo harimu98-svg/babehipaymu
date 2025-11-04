@@ -1,5 +1,16 @@
 exports.handler = async function(event, context) {
-    // Return actual values (dalam production mungkin perlu masking)
+    console.log('🌍 Environment function called');
+    
+    // Debug: log semua environment variables yang tersedia
+    console.log('Available environment variables:', {
+        IPAYMU_URL: process.env.IPAYMU_URL ? 'SET' : 'NOT SET',
+        IPAYMU_KEY: process.env.IPAYMU_KEY ? 'SET' : 'NOT SET', 
+        IPAYMU_VA: process.env.IPAYMU_VA ? 'SET' : 'NOT SET',
+        SITE_URL: process.env.SITE_URL ? 'SET' : 'NOT SET',
+        URL: process.env.URL ? 'SET' : 'NOT SET'
+    });
+    
+    // Return actual values dari Netlify environment
     return {
         statusCode: 200,
         headers: {
@@ -7,11 +18,11 @@ exports.handler = async function(event, context) {
             'Access-Control-Allow-Origin': '*'
         },
         body: JSON.stringify({
-            IPAYMU_BASE_URL: process.env.IPAYMU_BASE_URL,
-            IPAYMU_APIKEY: process.env.IPAYMU_APIKEY, // Return actual value untuk testing
-            IPAYMU_VA: process.env.IPAYMU_VA, // Return actual value untuk testing
-            NETLIFY_SITE_URL: process.env.NETLIFY_SITE_URL,
-            URL: process.env.URL // Netlify auto environment variable
+            IPAYMU_URL: process.env.IPAYMU_URL || null,
+            IPAYMU_KEY: process.env.IPAYMU_KEY || null, // Pastikan ini return value
+            IPAYMU_VA: process.env.IPAYMU_VA || null,
+            SITE_URL: process.env.SITE_URL || null,
+            URL: process.env.URL || null
         })
     };
 };
