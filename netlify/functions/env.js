@@ -7,7 +7,7 @@ exports.handler = async function(event, context) {
         IPAYMU_KEY: process.env.IPAYMU_KEY ? 'SET' : 'NOT SET', 
         IPAYMU_VA: process.env.IPAYMU_VA ? 'SET' : 'NOT SET',
         SITE_URL: process.env.SITE_URL ? 'SET' : 'NOT SET',
-        URL: process.env.URL ? 'SET' : 'NOT SET'
+        URL: process.env.URL ? 'SET' : 'NOT SET' 
     });
     
     // Return actual values dari Netlify environment
