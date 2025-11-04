@@ -4,29 +4,23 @@ class IpaymuService {
         this.initialize();
     }
 
-    
     async initialize() {
         try {
             console.log('🔄 Initializing iPaymuService...');
             
-            // Pastikan config sudah loaded
-            if (!window.iPaymuConfig) {
-                console.error('❌ iPaymuConfig not found!');
-                throw new Error('iPaymuConfig not initialized');
-            }
-
-            // Tunggu sampai config memiliki values yang diperlukan
+            // Tunggu config tersedia
             await this.waitForConfig();
             
             this.config = window.iPaymuConfig;
+            
+            // Validasi config lengkap
+            if (!this.config.baseUrl || !this.config.key || !this.config.va) {
+                throw new Error('Configuration incomplete');
+            }
+            
             this.isReady = true;
             
             console.log('🎯 iPaymuService initialized successfully');
-            console.log('🔑 Config:', {
-                baseUrl: this.config.baseUrl,
-                va: this.config.va ? '***' + this.config.va.slice(-4) : 'MISSING',
-                key: this.config.key ? '***' + this.config.key.slice(-4) : 'MISSING'
-            });
             
         } catch (error) {
             console.error('❌ iPaymuService initialization failed:', error);
@@ -37,12 +31,14 @@ class IpaymuService {
     waitForConfig() {
         return new Promise((resolve, reject) => {
             let attempts = 0;
-            const maxAttempts = 50; // 5 detik (100ms * 50)
+            const maxAttempts = 30; // 3 detik (100ms * 30)
             
             const checkConfig = () => {
                 attempts++;
                 
+                // Cek jika config sudah ada dan lengkap
                 if (window.iPaymuConfig && 
+                    window.iPaymuConfig.baseUrl && 
                     window.iPaymuConfig.key && 
                     window.iPaymuConfig.va) {
                     console.log('✅ Config ready after', attempts, 'attempts');
@@ -175,22 +171,24 @@ class IpaymuService {
     }
 
     // Method untuk check readiness
-    isServiceReady() {
+   isServiceReady() {
         return this.isReady;
     }
 }
 
-// Global instance - TUNDA INISIALISASI SAMPAI SEMUA COMPONENT READY
+// Global instance
 function initializeIpaymuService() {
     if (!window.iPaymuService) {
-        console.log('🔄 Initializing iPaymuService...');
+        console.log('🔄 Creating iPaymuService instance...');
         window.iPaymuService = new IpaymuService();
     }
     return window.iPaymuService;
 }
 
-// Auto initialize ketika semua ready
+// Auto initialize ketika DOM ready
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('📦 DOM ready, scheduling service initialization...');
+    // Tunggu 1 detik untuk memastikan config sudah di-load
     setTimeout(() => {
         initializeIpaymuService();
     }, 1000);
