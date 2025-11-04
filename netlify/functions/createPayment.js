@@ -40,7 +40,7 @@ export async function handler(event) {
       .createHmac("sha256", APIKEY)
       .update(VA + jsonBody + APIKEY)
       .digest("hex");
-
+console.log("🔑 Local Signature:", signature);
     const headers = {
       "Content-Type": "application/json",
       va: VA,
