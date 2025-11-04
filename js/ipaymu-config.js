@@ -1,6 +1,6 @@
 // Environment variables dari Netlify
 const iPaymuConfig = {
-    baseUrl: window.ENV?.IPAYMU_BASE_URL || process.env.IPAYMU_BASE_URL || 'https://sandbox.ipaymu.com/api/v2',
+    baseUrl: window.ENV?.IPAYMU_BASE_URL || process.env.IPAYMU_BASE_URL || '',
     apiKey: window.ENV?.IPAYMU_APIKEY || process.env.IPAYMU_APIKEY,
     va: window.ENV?.IPAYMU_VA || process.env.IPAYMU_VA,
     
