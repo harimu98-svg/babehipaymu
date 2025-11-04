@@ -1,78 +1,63 @@
-// netlify/functions/createPayment.js
 import crypto from "crypto";
 
-export async function handler(event) {
+export default async (req) => {
   try {
     console.log("🔧 createPayment invoked");
 
-    const { amount } = JSON.parse(event.body || "{}"); 
-    if (!amount) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing amount" }) };
-    }
-
+    const BASE_URL = process.env.IPAYMU_BASE_URL;
     const VA = process.env.IPAYMU_VA;
     const APIKEY = process.env.IPAYMU_APIKEY;
-    const BASE_URL = process.env.IPAYMU_BASE_URL || "";
+    const SITE_URL = process.env.NETLIFY_SITE_URL;
 
-    if (!VA || !APIKEY || !BASE_URL) {
-      console.error("❌ Missing iPaymu env:", { VA: !!VA, APIKEY: !!APIKEY, BASE_URL: !!BASE_URL });
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Server misconfigured: missing environment variables" }),
-      };
-    }
-
+    const { amount } = JSON.parse(req.body);
     const body = {
       product: ["QRIS Payment"],
       qty: ["1"],
       price: [amount],
-      amount,
-      returnUrl: `${process.env.NETLIFY_SITE_URL}/success.html`,
-      notifyUrl: `${process.env.NETLIFY_SITE_URL}/.netlify/functions/callback`,
-      referenceId: "INV" + Date.now(),
-      paymentMethod: "qris",
-      buyerName: "Tester",
+      returnUrl: `${SITE_URL}/return`,
+      cancelUrl: `${SITE_URL}/cancel`,
+      notifyUrl: `${SITE_URL}/.netlify/functions/ipaymu-callback`,
     };
-
     const jsonBody = JSON.stringify(body);
 
-    const signature = crypto
-      .createHmac("sha256", APIKEY)
-      .update(VA + jsonBody + APIKEY)
-      .digest("hex");
-console.log("🔑 Local Signature:", signature);
-console.log("📦 VA:", VA ? "✓ Set" : "✗ Missing");
-console.log("📦 APIKEY:", APIKEY ? "✓ Set" : "✗ Missing");
-    const headers = {
-      "Content-Type": "application/json",
-      va: VA,
-      signature,
-      timestamp: Date.now().toString(),
-    };
+    // Step 1: hash body
+    const hashBody = crypto.createHash("sha256").update(jsonBody).digest("hex").toLowerCase();
 
-    console.log("🔧 Sending request to:", BASE_URL);
+    // Step 2: build StringToSign
+    const stringToSign = `POST:${VA}:${hashBody}:${APIKEY}`;
 
-    const res = await fetch(BASE_URL, { method: "POST", headers, body: jsonBody });
-    const text = await res.text();
-    console.log("📄 Raw response from iPaymu:", text.substring(0, 200));
+    // Step 3: generate signature
+    const signature = crypto.createHmac("sha256", APIKEY).update(stringToSign).digest("hex");
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      console.error("❌ JSON parse failed:", err);
-      return { statusCode: 500, body: JSON.stringify({ error: "Invalid JSON from iPaymu", raw: text }) };
-    }
+    // Step 4: timestamp
+    const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
+
+    console.log("🧮 StringToSign:", stringToSign);
+    console.log("🔑 Signature:", signature);
+    console.log("🕒 Timestamp:", timestamp);
+
+    const response = await fetch(BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        va: VA,
+        signature,
+        timestamp,
+      },
+      body: jsonBody,
+    });
+
+    const text = await response.text();
+    const data = JSON.parse(text);
+
+    console.log("✅ iPaymu Response:", data);
 
     return {
-      statusCode: 200,
+      statusCode: response.status,
       body: JSON.stringify(data),
     };
   } catch (err) {
-    console.error("❌ createPayment error:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message || "Unknown error" }),
-    };
+    console.error("❌ Error in createPayment:", err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-}
+};
