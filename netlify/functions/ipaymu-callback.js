@@ -3,7 +3,7 @@ const paymentStatus = new Map();
 
 exports.handler = async (event) => {
     console.log('🔄 iPaymu Callback Received');
-    console.log('📦 Method:', event.httpMethod);
+    console.log('📦 Method:', event.httpMethod); 
 
     // Handle GET requests untuk check status
     if (event.httpMethod === 'GET') {
