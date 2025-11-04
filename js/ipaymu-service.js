@@ -4,6 +4,7 @@ class IpaymuService {
         this.initialize();
     }
 
+    
     async initialize() {
         try {
             console.log('🔄 Initializing iPaymuService...');
