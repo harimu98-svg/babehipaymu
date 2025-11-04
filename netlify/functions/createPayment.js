@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-export default async (req) => {
+export default async function handler(req) {
   try {
     console.log("🔧 createPayment invoked");
 
@@ -9,8 +9,11 @@ export default async (req) => {
     const APIKEY = process.env.IPAYMU_APIKEY;
     const SITE_URL = process.env.NETLIFY_SITE_URL;
 
-    const { amount } = JSON.parse(req.body);
-    const body = {
+    // 🧠 Perbaikan: body bisa berupa object atau string
+    const bodyData = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const { amount } = bodyData;
+
+    const payload = {
       product: ["QRIS Payment"],
       qty: ["1"],
       price: [amount],
@@ -18,7 +21,7 @@ export default async (req) => {
       cancelUrl: `${SITE_URL}/cancel`,
       notifyUrl: `${SITE_URL}/.netlify/functions/ipaymu-callback`,
     };
-    const jsonBody = JSON.stringify(body);
+    const jsonBody = JSON.stringify(payload);
 
     // Step 1: hash body
     const hashBody = crypto.createHash("sha256").update(jsonBody).digest("hex").toLowerCase();
@@ -36,6 +39,7 @@ export default async (req) => {
     console.log("🔑 Signature:", signature);
     console.log("🕒 Timestamp:", timestamp);
 
+    // Step 5: send to iPaymu
     const response = await fetch(BASE_URL, {
       method: "POST",
       headers: {
@@ -48,16 +52,23 @@ export default async (req) => {
     });
 
     const text = await response.text();
-    const data = JSON.parse(text);
+    console.log("📄 Raw response from iPaymu:", text);
 
-    console.log("✅ iPaymu Response:", data);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("❌ JSON parse failed:", e);
+      return new Response(JSON.stringify({ error: "Invalid JSON from iPaymu", raw: text }), { status: 500 });
+    }
 
-    return {
-      statusCode: response.status,
-      body: JSON.stringify(data),
-    };
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: { "Content-Type": "application/json" },
+    });
+
   } catch (err) {
     console.error("❌ Error in createPayment:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
-};
+}
