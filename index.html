@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Uji Coba Pembayaran QRIS iPaymu</title>
+  <script src="/config/load-env.js"></script>
+  <script src="/scripts/main.js"></script>
+  <style>
+    body { font-family: Arial; text-align: center; padding: 30px; }
+    input { font-size: 16px; padding: 8px; width: 200px; margin-bottom: 10px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    #result img { margin-top: 20px; }
+  </style>
+</head>
+<body onload="loadEnvironment()">
+  <h2>💳 Pembayaran QRIS (Sandbox iPaymu)</h2>
+  <p>Masukkan jumlah pembayaran:</p>
+  <input id="amount" type="number" min="1000" placeholder="Contoh: 10000" />
+  <br/>
+  <button onclick="initPayment()">Bayar</button>
+  <div id="result"></div>
+</body>
+</html>
