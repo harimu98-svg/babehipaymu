@@ -1,10 +1,15 @@
 // scripts/main.js
 let currentReferenceId = null;
+let refreshInterval = null;
+let countdownTimer = null;
 
 async function initPayment() {
   const amount = parseInt(document.getElementById("amount").value, 10);
   if (!amount || amount <= 0) return alert("Masukkan jumlah valid!");
 
+  // Stop previous refresh jika ada
+  stopAutoRefresh();
+  
   document.getElementById("result").innerHTML = "⏳ Membuat transaksi...";
 
   try {
@@ -58,16 +63,24 @@ async function initPayment() {
               
               <div style="background: #d1ecf1; padding: 15px; border-radius: 5px; border-left: 4px solid #0c5460;">
                 <p style="margin: 0; color: #0c5460; font-size: 14px;">
-                  <strong>💡 Sistem Real-time Active:</strong> 
-                  Status akan berubah <strong>otomatis</strong> ketika pembayaran berhasil. 
-                  Tidak perlu refresh halaman.
+                  <strong>🔄 Auto Refresh Active:</strong> 
+                  Halaman akan refresh otomatis dalam <span id="countdown">10</span> detik untuk mengecek status terbaru
                 </p>
               </div>
               
               <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px;">
                 <p style="margin: 0; font-size: 13px; color: #856404;">
-                  <strong>📞 Untuk testing:</strong> Gunakan iPaymu Callback Simulation dengan Reference ID di atas
+                  <strong>💡 Tips:</strong> Setelah bayar, tunggu 5-10 detik sampai status berubah otomatis
                 </p>
+              </div>
+              
+              <div style="margin-top: 10px;">
+                <button onclick="refreshNow()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px;">
+                  🔄 Refresh Sekarang
+                </button>
+                <button onclick="stopAutoRefresh()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px;">
+                  ⏸️ Stop Auto Refresh
+                </button>
               </div>
             </div>
           </div>
@@ -81,7 +94,8 @@ async function initPayment() {
         </style>
       `;
       
-      // ✅ TIDAK ADA AUTO CHECK - Andalkan callback saja
+      // Start auto refresh
+      startAutoRefresh();
       
     } else {
       showError(data.Message || "Gagal membuat pembayaran", data);
@@ -93,30 +107,45 @@ async function initPayment() {
   }
 }
 
-// ✅ TIDAK ADA fungsi checkPaymentStatus, startAutoCheck, dll.
-
-// Simple manual check function (optional - untuk debugging)
-async function checkStatusManually() {
-  if (!currentReferenceId) return alert('Buat transaksi dulu');
+function startAutoRefresh() {
+  let countdown = 10;
+  const countdownElement = document.getElementById('countdown');
   
-  try {
-    // Note: Function ini akan return 404 karena kita tidak buat checkCallback.js
-    // Ini hanya untuk demonstration
-    const res = await fetch("/.netlify/functions/checkCallback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ referenceId: currentReferenceId }),
-    });
+  // Update countdown setiap detik
+  countdownTimer = setInterval(() => {
+    countdown--;
     
-    if (res.ok) {
-      const data = await res.json();
-      alert(`Status: ${data.status || 'unknown'}`);
-    } else {
-      alert('Check status function tidak tersedia - andalkan callback saja');
+    if (countdownElement) {
+      countdownElement.textContent = countdown;
     }
-  } catch (error) {
-    alert('Error checking status - sistem mengandalkan callback iPaymu');
+    
+    if (countdown <= 0) {
+      refreshNow();
+    }
+  }, 1000);
+  
+  // Refresh setelah 10 detik
+  refreshInterval = setTimeout(() => {
+    refreshNow();
+  }, 10000);
+}
+
+function refreshNow() {
+  console.log('🔄 Auto refreshing page...');
+  stopAutoRefresh();
+  location.reload();
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval) {
+    clearTimeout(refreshInterval);
+    refreshInterval = null;
   }
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  console.log('⏸️ Auto refresh stopped');
 }
 
 function showError(message, data = null) {
@@ -139,5 +168,10 @@ function showError(message, data = null) {
   document.getElementById("result").innerHTML = errorHtml;
 }
 
+// Global functions
+window.refreshNow = refreshNow;
+window.stopAutoRefresh = stopAutoRefresh;
 window.initPayment = initPayment;
-// window.checkStatusManually = checkStatusManually; // Optional: comment out jika tidak needed
+
+// Stop refresh ketika page unload
+window.addEventListener('beforeunload', stopAutoRefresh);
