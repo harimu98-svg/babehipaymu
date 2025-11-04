@@ -13,15 +13,20 @@ export default async function handler(req) {
     const bodyData = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     const { amount } = bodyData;
 
-    const payload = {
-  product: ["QRIS Payment"],
+   const payload = {
+  name: "Ronaldo", // nama transaksi atau pelanggan
+  email: "customer@dummy.email", // opsional tapi bagus untuk log
+  phone: "08123456789", // opsional
+  amount: amount.toString(), // total pembayaran
+  product: "Kerupuk", // minimal satu produk
   qty: ["1"],
-  price: [amount],
+  price: [amount.toString()],
   returnUrl: `${SITE_URL}/return`,
   cancelUrl: `${SITE_URL}/cancel`,
   notifyUrl: `${SITE_URL}/.netlify/functions/ipaymu-callback`,
   paymentMethod: "qris",
-  channel: "mpm" // 🟢 Tambahkan untuk QRIS Merchant Presented Mode
+  channel: "mpm",
+  referenceId: `INV${Date.now()}`
 };
     const jsonBody = JSON.stringify(payload);
 
