@@ -41,6 +41,8 @@ export async function handler(event) {
       .update(VA + jsonBody + APIKEY)
       .digest("hex");
 console.log("🔑 Local Signature:", signature);
+console.log("📦 VA:", VA ? "✓ Set" : "✗ Missing");
+console.log("📦 APIKEY:", APIKEY ? "✓ Set" : "✗ Missing");
     const headers = {
       "Content-Type": "application/json",
       va: VA,
