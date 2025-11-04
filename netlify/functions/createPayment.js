@@ -17,10 +17,10 @@ export default async function handler(req) {
   name: "Ronaldo", // nama transaksi atau pelanggan
   email: "customer@dummy.email", // opsional tapi bagus untuk log
   phone: "08123456789", // opsional
-  amount: amount.toString(), // total pembayaran
+  amount: [25000], // total pembayaran
   product: "Kerupuk", // minimal satu produk
   qty: ["1"],
-  price: [amount.toString()],
+  price: [25000)],
   returnUrl: `${SITE_URL}/return`,
   cancelUrl: `${SITE_URL}/cancel`,
   notifyUrl: `${SITE_URL}/.netlify/functions/ipaymu-callback`,
