@@ -5,7 +5,7 @@ export async function handler(event) {
   try {
     console.log("🔧 createPayment invoked");
 
-    const { amount } = JSON.parse(event.body || "{}");
+    const { amount } = JSON.parse(event.body || "{}"); 
     if (!amount) {
       return { statusCode: 400, body: JSON.stringify({ error: "Missing amount" }) };
     }
