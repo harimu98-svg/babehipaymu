@@ -15,32 +15,35 @@ exports.handler = async function(event) {
     const RETURN_URL = `${process.env.NETLIFY_SITE_URL || 'https://your-site.netlify.app'}/success.html`;
     const NOTIFY_URL = `${process.env.NETLIFY_SITE_URL || 'https://your-site.netlify.app'}/.netlify/functions/callback`;
 
-    // Format body yang lebih sederhana sesuai dokumentasi iPaymu
+    // Format body sesuai dokumentasi
     const body = {
-      product: ["Test Product"],
-      qty: [1],
-      price: [parseInt(amount)],
+      name: "Test Customer",
+      phone: "081234567890",
+      email: "test@email.com",
       amount: parseInt(amount),
-      returnUrl: RETURN_URL,
       notifyUrl: NOTIFY_URL,
-      referenceId: "TEST" + Date.now(),
-      paymentMethod: "qris",
-      buyerName: "Test Customer",
-      buyerEmail: "customer@test.com",
-      buyerPhone: "08123456789"
+      referenceId: "REF" + Date.now(),
+      paymentMethod: "qris", // QRIS payment
+      expired: 24,
+      expiredType: "hours",
+      comments: "Payment Test"
     };
 
-    console.log("📝 Request Body:", body);
+    const jsonBody = JSON.stringify(body);
+    
+    // ✅ Format timestamp yang benar: YYYYMMDDhhmmss
+    const now = new Date();
+    const timestamp = 
+      now.getFullYear().toString() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0') +
+      String(now.getHours()).padStart(2, '0') +
+      String(now.getMinutes()).padStart(2, '0') +
+      String(now.getSeconds()).padStart(2, '0');
 
-    // Stringify TANPA spasi/tab (sangat penting!)
-    const jsonBody = JSON.stringify(body).replace(/\s+/g, '');
-    
-    // Method untuk signature harus uppercase
-    const method = "POST";
-    
-    // Buat string untuk signature - format: METHOD:VA:RequestBody:APIKEY
-    const requestBody = crypto.createHash('md5').update(jsonBody).digest('hex');
-    const stringToSign = `${method}:${VA}:${requestBody}:${APIKEY}`;
+    // ✅ Format signature yang benar
+    const requestBodyHash = crypto.createHash('sha256').update(jsonBody).digest('hex').toLowerCase();
+    const stringToSign = `POST:${VA}:${requestBodyHash}:${APIKEY}`;
     
     console.log("🔐 String to sign:", stringToSign);
 
@@ -48,8 +51,6 @@ exports.handler = async function(event) {
       .createHmac("sha256", APIKEY)
       .update(stringToSign)
       .digest("hex");
-
-    const timestamp = new Date().toISOString();
 
     const headers = {
       "Content-Type": "application/json",
@@ -61,8 +62,8 @@ exports.handler = async function(event) {
     console.log("📤 Request Details:", {
       url: URL,
       va: VA,
+      timestamp: timestamp,
       signature: signature.substring(0, 20) + "...",
-      timestamp,
       body: body
     });
 
