@@ -5,7 +5,7 @@ let statusInterval = null;
 // Load environment variables dari Netlify Function
 async function loadEnvironment() {
     try {
-        log('🌍 Loading environment variables...');
+        log('🌍 Loading environment variables from Netlify...');
         
         const response = await fetch('/.netlify/functions/env');
         
@@ -15,12 +15,14 @@ async function loadEnvironment() {
         
         const envData = await response.json();
         
-        console.log('🌍 Environment loaded:', {
-            IPAYMU_URL: envData.IPAYMU_URL,
-            IPAYMU_KEY: envData.IPAYMU_KEY ? '***' + envData.IPAYMU_KEY.slice(-4) : null,
-            IPAYMU_VA: envData.IPAYMU_VA ? '***' + envData.IPAYMU_VA.slice(-4) : null,
-            SITE_URL: envData.SITE_URL
-        });
+        console.log('🌍 Raw environment data:', envData);
+        
+        // Debug detail
+        log(`📦 Environment check:`);
+        log(`   - IPAYMU_URL: ${envData.IPAYMU_URL ? '✅ SET' : '❌ MISSING'}`);
+        log(`   - IPAYMU_KEY: ${envData.IPAYMU_KEY ? '✅ SET (' + '***' + envData.IPAYMU_KEY.slice(-4) + ')' : '❌ MISSING'}`);
+        log(`   - IPAYMU_VA: ${envData.IPAYMU_VA ? '✅ SET (' + '***' + envData.IPAYMU_VA.slice(-4) + ')' : '❌ MISSING'}`);
+        log(`   - SITE_URL: ${envData.SITE_URL ? '✅ SET' : '❌ MISSING'}`);
         
         // Set window.ENV dengan values sebenarnya
         window.ENV = envData;
@@ -28,18 +30,21 @@ async function loadEnvironment() {
         // Update config dengan values dari Netlify
         if (window.updateIpaymuConfig) {
             window.updateIpaymuConfig(envData);
+            log('✅ Config updated with environment values');
+        } else {
+            log('❌ updateIpaymuConfig function not found');
         }
         
-        log('✅ Environment variables loaded successfully');
         return true;
         
     } catch (error) {
         console.log('⚠️ Cannot load environment from Netlify:', error.message);
-        log('⚠️ Using client-side configuration only');
+        log(`❌ Failed to load environment: ${error.message}`);
+        log('💡 Make sure Netlify function is deployed correctly');
         
         // Fallback untuk development
         window.ENV = {
-            IPAYMU_URL: 'https://sandbox.ipaymu.com/payment/v2',
+            IPAYMU_URL: 'https://sandbox.ipaymu.com/api/v2',
             IPAYMU_KEY: null,
             IPAYMU_VA: null,
             SITE_URL: window.location.origin
@@ -74,25 +79,31 @@ function showConfigStatus() {
     return hasKey && hasVa;
 }
 
+// Check jika service sudah ready
+function isServiceReady() {
+    return window.iPaymuService && window.iPaymuService.isServiceReady && window.iPaymuService.isServiceReady();
+}
+
 async function createPayment() {
     try {
         // Pastikan payment service sudah siap
-        if (!window.iPaymuService) {
-            log('❌ iPaymuService belum siap, tunggu sebentar...');
-            setTimeout(createPayment, 1000);
+        if (!isServiceReady()) {
+            log('⏳ iPaymuService belum siap, tunggu sebentar...');
+            
+            // Coba initialize service
+            if (window.initializeIpaymuService) {
+                window.initializeIpaymuService();
+            }
+            
+            setTimeout(createPayment, 2000);
             return;
         }
 
         // Validasi config
         if (!window.iPaymuConfig.key || !window.iPaymuConfig.va) {
-            const errorMsg = '❌ Konfigurasi iPaymu belum lengkap. Pastikan environment variables sudah diset di Netlify.';
+            const errorMsg = '❌ Konfigurasi iPaymu belum lengkap.';
             alert(errorMsg);
             log(errorMsg);
-            log('💡 Tips: Set environment variables di Netlify dashboard:');
-            log('   - IPAYMU_KEY');
-            log('   - IPAYMU_VA');
-            log('   - IPAYMU_URL (optional)');
-            log('   - SITE_URL (optional)');
             return;
         }
 
@@ -236,25 +247,29 @@ function resetForm() {
 
 // Initialize ketika DOM ready
 document.addEventListener('DOMContentLoaded', async function() {
-    log('🚀 iPaymu Test App Loading...');
+    log('🚀 iPaymu Test App Initializing...');
     
     // Load environment variables terlebih dahulu
     const envLoaded = await loadEnvironment();
     
-    if (envLoaded) {
-        log('✅ Environment loaded from Netlify');
-    } else {
-        log('⚠️ Using fallback configuration');
-    }
-    
-    // Show config status
-    const configReady = showConfigStatus();
-    
-    if (!configReady) {
-        log('❌ Cannot proceed without Key and VA');
-        document.getElementById('payButton').disabled = true;
-        document.getElementById('payButton').textContent = '❌ Config Error';
-    } else {
-        log('✅ Application ready to accept payments');
-    }
+    // Tunggu sebentar untuk memastikan config ter-update
+    setTimeout(() => {
+        // Show config status
+        const configReady = showConfigStatus();
+        
+        if (!configReady) {
+            log('❌ APPLICATION NOT READY: Missing configuration');
+            document.getElementById('payButton').disabled = true;
+            document.getElementById('payButton').textContent = '❌ Setup Required';
+        } else {
+            log('✅ APPLICATION READY: Configuration complete');
+            log('🎯 You can now create test payments');
+            
+            // Initialize service setelah config ready
+            if (window.initializeIpaymuService) {
+                window.initializeIpaymuService();
+                log('🔄 iPaymuService initialization started...');
+            }
+        }
+    }, 500);
 });
