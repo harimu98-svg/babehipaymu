@@ -44,7 +44,7 @@ async function loadEnvironment() {
         
         // Fallback untuk development
         window.ENV = {
-            IPAYMU_URL: 'https://sandbox.ipaymu.com/api/v2',
+            IPAYMU_URL: null,
             IPAYMU_KEY: null,
             IPAYMU_VA: null,
             SITE_URL: window.location.origin
