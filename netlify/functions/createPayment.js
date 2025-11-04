@@ -14,13 +14,15 @@ export default async function handler(req) {
     const { amount } = bodyData;
 
     const payload = {
-      product: ["QRIS Payment"],
-      qty: ["1"],
-      price: [amount],
-      returnUrl: `${SITE_URL}/return`,
-      cancelUrl: `${SITE_URL}/cancel`,
-      notifyUrl: `${SITE_URL}/.netlify/functions/ipaymu-callback`,
-    };
+  product: ["QRIS Payment"],
+  qty: ["1"],
+  price: [amount],
+  returnUrl: `${SITE_URL}/return`,
+  cancelUrl: `${SITE_URL}/cancel`,
+  notifyUrl: `${SITE_URL}/.netlify/functions/ipaymu-callback`,
+  paymentMethod: "qris",
+  channel: "mpm" // 🟢 Tambahkan untuk QRIS Merchant Presented Mode
+};
     const jsonBody = JSON.stringify(payload);
 
     // Step 1: hash body
