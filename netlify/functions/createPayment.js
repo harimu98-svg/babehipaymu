@@ -3,32 +3,39 @@ import crypto from "crypto";
 
 export async function handler(event) {
   try {
-    const { amount } = JSON.parse(event.body || "{}");
+    console.log("🔧 createPayment invoked");
 
+    const { amount } = JSON.parse(event.body || "{}");
     if (!amount) {
-      return { statusCode: 400, body: "Missing amount" };
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing amount" }) };
     }
 
     const VA = process.env.IPAYMU_VA;
     const APIKEY = process.env.IPAYMU_APIKEY;
-    const URL = process.env.IPAYMU_BASE_URL || "";
-    const RETURN_URL = `${process.env.NETLIFY_SITE_URL}/success.html`;
-    const NOTIFY_URL = `${process.env.NETLIFY_SITE_URL}/.netlify/functions/callback`;
+    const BASE_URL = process.env.IPAYMU_BASE_URL || "";
 
-    // iPaymu signature
+    if (!VA || !APIKEY || !BASE_URL) {
+      console.error("❌ Missing iPaymu env:", { VA: !!VA, APIKEY: !!APIKEY, BASE_URL: !!BASE_URL });
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Server misconfigured: missing environment variables" }),
+      };
+    }
+
     const body = {
       product: ["QRIS Payment"],
       qty: ["1"],
       price: [amount],
       amount,
-      returnUrl: RETURN_URL,
-      notifyUrl: NOTIFY_URL,
+      returnUrl: `${process.env.NETLIFY_SITE_URL}/success.html`,
+      notifyUrl: `${process.env.NETLIFY_SITE_URL}/.netlify/functions/callback`,
       referenceId: "INV" + Date.now(),
       paymentMethod: "qris",
       buyerName: "Tester",
     };
 
     const jsonBody = JSON.stringify(body);
+
     const signature = crypto
       .createHmac("sha256", APIKEY)
       .update(VA + jsonBody + APIKEY)
@@ -41,15 +48,29 @@ export async function handler(event) {
       timestamp: Date.now().toString(),
     };
 
-    const res = await fetch(URL, { method: "POST", headers, body: jsonBody });
-    const data = await res.json();
+    console.log("🔧 Sending request to:", BASE_URL);
+
+    const res = await fetch(BASE_URL, { method: "POST", headers, body: jsonBody });
+    const text = await res.text();
+    console.log("📄 Raw response from iPaymu:", text.substring(0, 200));
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      console.error("❌ JSON parse failed:", err);
+      return { statusCode: 500, body: JSON.stringify({ error: "Invalid JSON from iPaymu", raw: text }) };
+    }
 
     return {
       statusCode: 200,
       body: JSON.stringify(data),
     };
   } catch (err) {
-    console.error("❌ iPaymu error:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error("❌ createPayment error:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message || "Unknown error" }),
+    };
   }
 }
