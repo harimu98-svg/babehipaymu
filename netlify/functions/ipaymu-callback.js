@@ -4,8 +4,6 @@ const paymentStatus = new Map();
 exports.handler = async (event) => {
     console.log('🔄 iPaymu Callback Received');
     console.log('📦 Method:', event.httpMethod);
-    console.log('📦 Headers:', event.headers);
-    console.log('📦 Raw Body:', event.body);
 
     // Handle GET requests untuk check status
     if (event.httpMethod === 'GET') {
@@ -49,7 +47,8 @@ exports.handler = async (event) => {
                 status_code: params.get('status_code'),
                 sid: params.get('sid'),
                 reference_id: params.get('reference_id'),
-                received_at: new Date().toISOString()
+                received_at: new Date().toISOString(),
+                site_url: process.env.NETLIFY_SITE_URL || 'unknown'
             };
 
             console.log('📦 Parsed Callback Data:', callbackData);
@@ -73,7 +72,6 @@ exports.handler = async (event) => {
             paymentStatus.set(reference_id, callbackData);
 
             console.log(`✅ Payment status saved: ${reference_id} -> ${status}`);
-            console.log('💾 Current payments:', Array.from(paymentStatus.entries()));
 
             // Return success ke iPaymu
             return {
@@ -86,7 +84,8 @@ exports.handler = async (event) => {
                     success: true,
                     message: 'Callback processed successfully',
                     order_no: reference_id,
-                    status: status
+                    status: status,
+                    processed_by: process.env.NETLIFY_SITE_URL || 'local'
                 })
             };
 
@@ -94,7 +93,7 @@ exports.handler = async (event) => {
             console.error('❌ Callback processing error:', error);
             
             return {
-                statusCode: 200, // Tetap 200 untuk iPaymu
+                statusCode: 200,
                 headers: { 
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*' 
@@ -107,7 +106,6 @@ exports.handler = async (event) => {
         }
     }
 
-    // Method not allowed
     return {
         statusCode: 405,
         headers: { 
