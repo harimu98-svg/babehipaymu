@@ -2,22 +2,84 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Uji Coba Pembayaran QRIS iPaymu</title>
+  <title>QRIS Payment - iPaymu</title>
   <script src="/config/load-env.js"></script>
   <script src="/scripts/main.js"></script>
   <style>
-    body { font-family: Arial; text-align: center; padding: 30px; }
-    input { font-size: 16px; padding: 8px; width: 200px; margin-bottom: 10px; }
-    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-    #result img { margin-top: 20px; }
+    body { 
+      font-family: 'Segoe UI', Arial, sans-serif; 
+      text-align: center; 
+      padding: 30px; 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background: #f8f9fa;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    input { 
+      font-size: 16px; 
+      padding: 12px; 
+      width: 200px; 
+      margin: 10px; 
+      border: 1px solid #ddd; 
+      border-radius: 5px; 
+      text-align: center;
+    }
+    button { 
+      padding: 12px 30px; 
+      font-size: 16px; 
+      cursor: pointer; 
+      background: #007bff; 
+      color: white; 
+      border: none; 
+      border-radius: 5px; 
+      transition: background 0.3s;
+    }
+    button:hover { 
+      background: #0056b3; 
+    }
+    #result { 
+      margin-top: 20px; 
+    }
+    .info-box { 
+      background: #e7f3ff; 
+      padding: 15px; 
+      border-radius: 5px; 
+      margin: 15px 0; 
+      border-left: 4px solid #007bff;
+    }
+    code {
+      background: #f1f1f1;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body onload="loadEnvironment()">
-  <h2>💳 Pembayaran QRIS (Sandbox iPaymu)</h2>
-  <p>Masukkan jumlah pembayaran:</p>
-  <input id="amount" type="number" min="1000" placeholder="Contoh: 10000" />
-  <br/>
-  <button onclick="initPayment()">Bayar</button>
-  <div id="result"></div>
+  <div class="container">
+    <h2>💳 Pembayaran QRIS</h2>
+    
+    <div class="info-box">
+      <p><strong>Sistem Pembayaran Real-time</strong></p>
+      <p>✅ Buat QRIS → Bayar → Status update otomatis</p>
+      <p>✅ Tidak perlu refresh halaman</p>
+      <p>✅ Notifikasi instan ketika berhasil</p>
+    </div>
+    
+    <p><strong>Masukkan jumlah pembayaran:</strong></p>
+    <input id="amount" type="number" min="1000" placeholder="Contoh: 10000" />
+    <br/>
+    <button onclick="initPayment()">Buat QRIS Pembayaran</button>
+    <div id="result"></div>
+  </div>
 </body>
 </html>
