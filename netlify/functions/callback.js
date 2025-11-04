@@ -1,8 +1,10 @@
 // netlify/functions/callback.js
 
-// Simple in-memory store untuk demo
-// Untuk production, gunakan database (Supabase/Redis)
-const paymentCallbacks = new Map();
+// Global storage untuk semua functions - shared memory
+if (typeof global.paymentCallbacks === 'undefined') {
+  global.paymentCallbacks = new Map();
+}
+const paymentCallbacks = global.paymentCallbacks;
 
 exports.handler = async function(event) {
   try {
@@ -44,7 +46,7 @@ exports.handler = async function(event) {
 
     console.log("💳 iPaymu Callback Parsed:", JSON.stringify(callbackData, null, 2));
 
-    // ✅ Simpan callback data untuk frontend
+    // ✅ Simpan callback data ke shared storage
     if (callbackData.reference_id) {
       paymentCallbacks.set(callbackData.reference_id, {
         ...callbackData,
@@ -52,7 +54,8 @@ exports.handler = async function(event) {
         processed: true
       });
       
-      console.log(`💾 Callback saved: ${callbackData.reference_id} = ${callbackData.status}`);
+      console.log(`💾 Callback saved to shared storage: ${callbackData.reference_id} = ${callbackData.status}`);
+      console.log(`📊 Total stored callbacks: ${paymentCallbacks.size}`);
     }
 
     // 🎯 PROCESS BUSINESS LOGIC
@@ -106,7 +109,10 @@ async function processPaymentCallback(callbackData) {
   return true;
 }
 
-// Function untuk frontend check status (optional, hanya untuk manual check)
-exports.getCallbackStatus = async function(referenceId) {
+// Function untuk check status (optional - bisa diakses dari function lain)
+function getCallbackStatus(referenceId) {
   return paymentCallbacks.get(referenceId);
-};
+}
+
+// Export untuk potential future use
+module.exports = { getCallbackStatus };
