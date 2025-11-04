@@ -11,7 +11,7 @@ exports.handler = async function(event) {
 
     const VA = process.env.IPAYMU_VA;
     const APIKEY = process.env.IPAYMU_APIKEY;
-    const URL = process.env.IPAYMU_BASE_URL || "https://sandbox.ipaymu.com/api/v2/payment/direct";
+    const URL = process.env.IPAYMU_BASE_URL || "";
     const RETURN_URL = `${process.env.NETLIFY_SITE_URL}/success.html`;
     const NOTIFY_URL = `${process.env.NETLIFY_SITE_URL}/.netlify/functions/callback`;
 
