@@ -6,7 +6,7 @@ exports.handler = async function(event, context) {
   const VA = process.env.IPAYMU_VA;
   const APIKEY = process.env.IPAYMU_APIKEY;
   const URL = process.env.IPAYMU_BASE_URL || "";
-  const SITE_URL = process.env.NETLIFY_SITE_URL || 'https://babehipaymu.netlify.app';
+  const SITE_URL = process.env.NETLIFY_SITE_URL || '';
 
   try {
     const { amount } = JSON.parse(event.body || "{}");
