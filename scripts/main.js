@@ -10,8 +10,7 @@ const domainParts = {
 };
 const APP_BASE_URL = `https://${domainParts.sub}.${domainParts.platform}.${domainParts.ext}`;
 
-// ✅ ATAU gunakan Base64 encoded (pilih salah satu)
-// const APP_BASE_URL = "https://babehipaymu.netlify.app"; // JANGAN langsung hardcode
+
 
 async function initPayment() {
   const amount = parseInt(document.getElementById("amount").value, 10);
