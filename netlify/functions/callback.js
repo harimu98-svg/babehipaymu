@@ -1,21 +1,19 @@
 // netlify/functions/callback.js
 
-// Global storage untuk semua functions - shared memory
+// Global storage
 if (typeof global.paymentCallbacks === 'undefined') {
   global.paymentCallbacks = new Map();
 }
 const paymentCallbacks = global.paymentCallbacks;
 
-// ✅ CORRECT: exports.handler untuk Netlify Functions
 exports.handler = async function(event, context) {
   try {
     console.log("📨 Callback Received - Method:", event.httpMethod);
-    console.log("📨 Callback Received - Headers:", JSON.stringify(event.headers, null, 2));
     console.log("📨 Callback Received - Body:", event.body);
 
     let callbackData;
 
-    // Handle form-data (format production iPaymu)
+    // Handle form-data
     if (event.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
       const params = new URLSearchParams(event.body);
       callbackData = {
@@ -41,38 +39,32 @@ exports.handler = async function(event, context) {
         source: 'ipaymu_production'
       };
     } 
-    // Handle JSON body (dari iPaymu Callback Simulation)
+    // Handle JSON
     else if (event.headers['content-type']?.includes('application/json')) {
       callbackData = JSON.parse(event.body);
       callbackData.source = 'ipaymu_simulation';
     } else {
-      // Try to parse as JSON
       try {
         callbackData = JSON.parse(event.body);
         callbackData.source = 'auto_detected';
       } catch (e) {
-        callbackData = { 
-          raw: event.body, 
-          source: 'unknown'
-        };
+        callbackData = { raw: event.body, source: 'unknown' };
       }
     }
 
     console.log("💳 iPaymu Callback Parsed:", JSON.stringify(callbackData, null, 2));
 
-    // ✅ Simpan callback data ke shared storage
+    // ✅ Simpan ke storage
     if (callbackData.reference_id) {
       paymentCallbacks.set(callbackData.reference_id, {
         ...callbackData,
         received_at: new Date().toISOString(),
         processed: true
       });
-      
       console.log(`💾 Callback saved: ${callbackData.reference_id} = ${callbackData.status}`);
-      console.log(`📊 Total stored callbacks: ${paymentCallbacks.size}`);
     }
 
-    // 🎯 PROCESS BUSINESS LOGIC
+    // 🎯 Business logic
     await processPaymentCallback(callbackData);
 
     return { 
@@ -85,9 +77,12 @@ exports.handler = async function(event, context) {
       body: JSON.stringify({ 
         success: true, 
         message: "Callback processed successfully",
+        // ✅ KIRIM DATA LENGKAP untuk frontend
+        data: callbackData,
         reference_id: callbackData.reference_id,
         status: callbackData.status,
         amount: callbackData.amount,
+        paid_at: callbackData.paid_at,
         stored: true,
         timestamp: new Date().toISOString()
       }) 
@@ -109,28 +104,13 @@ exports.handler = async function(event, context) {
   }
 };
 
-// Business logic
 async function processPaymentCallback(callbackData) {
-  const { reference_id, status, amount, paid_at } = callbackData;
-  
-  console.log(`🎯 Processing business logic: ${reference_id} - ${status} - ${amount}`);
-  
-  // TODO: Implement your business logic here
-  // 1. Update database
-  // 2. Send email notification
-  // 3. Update inventory, etc.
+  const { reference_id, status, amount } = callbackData;
+  console.log(`🎯 Processing: ${reference_id} - ${status} - ${amount}`);
   
   if (status === 'berhasil') {
-    console.log(`💰 Payment successful: ${reference_id} - Amount: ${amount} - Paid at: ${paid_at}`);
-    // await sendSuccessEmail(reference_id);
-    // await updateOrderStatus(reference_id, 'paid');
+    console.log(`💰 Payment successful: ${reference_id} - Amount: ${amount}`);
   }
   
-  console.log(`✅ Business logic executed for: ${reference_id}`);
   return true;
 }
-
-// Function untuk check status (optional - bisa digunakan oleh function lain)
-exports.getCallbackStatus = function(referenceId) {
-  return paymentCallbacks.get(referenceId);
-};
