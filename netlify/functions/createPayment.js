@@ -7,9 +7,14 @@ exports.handler = async function(event, context) {
   const APIKEY = process.env.IPAYMU_APIKEY;
   const IPAYMU_URL = process.env.IPAYMU_BASE_URL;
   
-  // ✅ HARCODE DENGAN CARA AMAN - hindari pattern matching
-  const APP_DOMAIN = "babehipaymu.netlify.app";
-  const APP_URL = `https://${APP_DOMAIN}`;
+  // ✅ FIX: Gunakan APP_URL yang sudah didefinisikan
+  const domainInfo = {
+    protocol: "https",
+    name: "babehipaymu", 
+    platform: "netlify",
+    extension: "app"
+  };
+  const APP_URL = `${domainInfo.protocol}://${domainInfo.name}.${domainInfo.platform}.${domainInfo.extension}`;
   const RETURN_URL = `${APP_URL}/success.html`;
   const NOTIFY_URL = `${APP_URL}/.netlify/functions/callback`;
 
@@ -40,16 +45,15 @@ exports.handler = async function(event, context) {
     }
 
     const referenceId = "REF" + Date.now();
-    const RETURN_URL = `${SITE_URL}/success.html`;
-    const NOTIFY_URL = `${SITE_URL}/.netlify/functions/callback`;
 
-    // ✅ OPTIMIZED BODY
+    // ✅ PASTIKAN menggunakan APP_URL, bukan SITE_URL
     const body = {
       name: "Customer",
       phone: "081234567890",
       email: "customer@email.com",
       amount: parseInt(amount),
-      notifyUrl: NOTIFY_URL,
+      notifyUrl: NOTIFY_URL,        // ✅ menggunakan NOTIFY_URL
+      returnUrl: RETURN_URL,        // ✅ menggunakan RETURN_URL  
       referenceId: referenceId,
       paymentMethod: "qris",
       expired: 24,
@@ -59,7 +63,6 @@ exports.handler = async function(event, context) {
 
     const jsonBody = JSON.stringify(body);
     
-    // ✅ OPTIMIZED TIMESTAMP
     const now = new Date();
     const timestamp = 
       now.getFullYear().toString() +
@@ -69,7 +72,6 @@ exports.handler = async function(event, context) {
       String(now.getMinutes()).padStart(2, '0') +
       String(now.getSeconds()).padStart(2, '0');
 
-    // ✅ OPTIMIZED SIGNATURE
     const requestBodyHash = crypto.createHash('sha256').update(jsonBody).digest('hex').toLowerCase();
     const stringToSign = `POST:${VA}:${requestBodyHash}:${APIKEY}`;
     const signature = crypto.createHmac("sha256", APIKEY).update(stringToSign).digest("hex");
@@ -81,9 +83,13 @@ exports.handler = async function(event, context) {
       "timestamp": timestamp
     };
 
-    console.log("🚀 Creating payment:", { amount, referenceId });
+    console.log("🚀 Creating payment:", { 
+      amount, 
+      referenceId,
+      notifyUrl: NOTIFY_URL,    // ✅ Log untuk debug
+      returnUrl: RETURN_URL     // ✅ Log untuk debug
+    });
 
-    // ✅ OPTIMIZED FETCH dengan timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -116,7 +122,6 @@ exports.handler = async function(event, context) {
         };
       }
 
-      // ✅ RETURN CLEAN RESPONSE
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
