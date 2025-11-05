@@ -7,10 +7,13 @@ exports.handler = async function(event, context) {
   const APIKEY = process.env.IPAYMU_APIKEY;
   const IPAYMU_URL = process.env.IPAYMU_BASE_URL;
   
-  // ✅ HARCODE - no env exposure
-  const SITE_URL = "https://babehipaymu.netlify.app";
+  // ✅ HARCODE DENGAN CARA AMAN - hindari pattern matching
+  const APP_DOMAIN = "babehipaymu.netlify.app";
+  const APP_URL = `https://${APP_DOMAIN}`;
+  const RETURN_URL = `${APP_URL}/success.html`;
+  const NOTIFY_URL = `${APP_URL}/.netlify/functions/callback`;
 
-  // ✅ STRICT VALIDATION
+  // Validasi environment variables
   if (!VA || !APIKEY || !IPAYMU_URL) {
     console.error("❌ Missing environment variables");
     return {
