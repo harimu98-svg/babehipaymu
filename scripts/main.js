@@ -1,14 +1,13 @@
 // scripts/main.js
 let currentReferenceId = null;
-let refreshInterval = null;
-let countdownTimer = null;
+let pollingInterval = null;
 
 async function initPayment() {
   const amount = parseInt(document.getElementById("amount").value, 10);
   if (!amount || amount <= 0) return alert("Masukkan jumlah valid!");
 
-  // Stop previous refresh jika ada
-  stopAutoRefresh();
+  // Stop previous polling
+  stopPolling();
   
   document.getElementById("result").innerHTML = "⏳ Membuat transaksi...";
 
@@ -32,7 +31,6 @@ async function initPayment() {
 
     console.log("📊 Parsed Data:", data);
 
-    // Handle success response
     if ((data.Status === 200 || data.Status === 0) && data.Data?.QrString) {
       currentReferenceId = data.Data.ReferenceId || data.Data.SessionId;
       
@@ -63,24 +61,14 @@ async function initPayment() {
               
               <div style="background: #d1ecf1; padding: 15px; border-radius: 5px; border-left: 4px solid #0c5460;">
                 <p style="margin: 0; color: #0c5460; font-size: 14px;">
-                  <strong>🔄 Auto Refresh Active:</strong> 
-                  Halaman akan refresh otomatis dalam <span id="countdown">10</span> detik untuk mengecek status terbaru
+                  <strong>🔄 Real-time Polling Active</strong> - Checking status every 3 seconds
                 </p>
               </div>
               
               <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px;">
                 <p style="margin: 0; font-size: 13px; color: #856404;">
-                  <strong>💡 Tips:</strong> Setelah bayar, tunggu 5-10 detik sampai status berubah otomatis
+                  <strong>Last check:</strong> <span id="lastCheck">Just now</span>
                 </p>
-              </div>
-              
-              <div style="margin-top: 10px;">
-                <button onclick="refreshNow()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px;">
-                  🔄 Refresh Sekarang
-                </button>
-                <button onclick="stopAutoRefresh()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px;">
-                  ⏸️ Stop Auto Refresh
-                </button>
               </div>
             </div>
           </div>
@@ -94,8 +82,8 @@ async function initPayment() {
         </style>
       `;
       
-      // Start auto refresh
-      startAutoRefresh();
+      // Start polling langsung
+      startPolling(currentReferenceId);
       
     } else {
       showError(data.Message || "Gagal membuat pembayaran", data);
@@ -107,45 +95,171 @@ async function initPayment() {
   }
 }
 
-function startAutoRefresh() {
-  let countdown = 10;
-  const countdownElement = document.getElementById('countdown');
+// ✅ POLLING SYSTEM - Check callback data
+function startPolling(referenceId) {
+  stopPolling();
   
-  // Update countdown setiap detik
-  countdownTimer = setInterval(() => {
-    countdown--;
-    
-    if (countdownElement) {
-      countdownElement.textContent = countdown;
-    }
-    
-    if (countdown <= 0) {
-      refreshNow();
-    }
-  }, 1000);
+  // Check immediately
+  checkCallbackStatus(referenceId);
   
-  // Refresh setelah 10 detik
-  refreshInterval = setTimeout(() => {
-    refreshNow();
-  }, 10000);
+  // Then every 3 seconds
+  pollingInterval = setInterval(() => {
+    checkCallbackStatus(referenceId);
+  }, 3000);
 }
 
-function refreshNow() {
-  console.log('🔄 Auto refreshing page...');
-  stopAutoRefresh();
-  location.reload();
+function stopPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
 }
 
-function stopAutoRefresh() {
-  if (refreshInterval) {
-    clearTimeout(refreshInterval);
-    refreshInterval = null;
+async function checkCallbackStatus(referenceId) {
+  try {
+    // ✅ POLLING: Cek apakah callback sudah datang untuk referenceId ini
+    const res = await fetch("/.netlify/functions/checkCallbackStatus", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referenceId }),
+    });
+    
+    if (!res.ok) {
+      console.log('Check status function not available yet');
+      return;
+    }
+    
+    const data = await res.json();
+    console.log("🔄 Polling result:", data);
+    
+    // Update last check time
+    const lastCheckElement = document.getElementById('lastCheck');
+    if (lastCheckElement) {
+      lastCheckElement.textContent = new Date().toLocaleTimeString();
+    }
+    
+    // Jika callback data ditemukan, update UI
+    if (data.exists && data.status) {
+      updateStatusDisplay(data);
+      
+      // Stop polling jika payment completed
+      if (data.status === 'berhasil' || data.status === 'expired') {
+        stopPolling();
+        
+        if (data.status === 'berhasil') {
+          // Show success celebration
+          setTimeout(() => {
+            showSuccessCelebration(data);
+          }, 1000);
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error("Polling error:", error);
   }
-  if (countdownTimer) {
-    clearInterval(countdownTimer);
-    countdownTimer = null;
+}
+
+function updateStatusDisplay(data) {
+  const statusDisplay = document.getElementById("statusDisplay");
+  if (!statusDisplay) return;
+  
+  const status = data.status || 'pending';
+  
+  const statusConfig = {
+    'pending': { 
+      color: '#e7f3ff', 
+      border: '#b8daff',
+      icon: '⏳', 
+      message: 'Menunggu Pembayaran',
+      description: 'Scan QR code untuk melakukan pembayaran',
+      showLoading: true
+    },
+    'berhasil': { 
+      color: '#d4edda', 
+      border: '#c3e6cb',
+      icon: '✅', 
+      message: 'Pembayaran Berhasil!',
+      description: 'Pembayaran telah diterima dan diproses',
+      showLoading: false
+    },
+    'expired': { 
+      color: '#f8d7da', 
+      border: '#f5c6cb',
+      icon: '❌', 
+      message: 'Pembayaran Kadaluarsa',
+      description: 'QR code telah kadaluarsa',
+      showLoading: false
+    }
+  };
+  
+  const config = statusConfig[status] || statusConfig.pending;
+  
+  statusDisplay.innerHTML = `
+    <div style="background: ${config.color}; padding: 25px; border-radius: 10px; border: 2px solid ${config.border};">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px;">
+        ${config.showLoading ? `
+          <div class="loading-spinner" style="width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        ` : ''}
+        <h3 style="margin: 0; color: ${status === 'berhasil' ? '#155724' : status === 'expired' ? '#721c24' : '#004085'};">
+          ${config.icon} ${config.message}
+        </h3>
+      </div>
+      
+      <div style="text-align: left; background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <p style="margin: 8px 0;"><strong>Status:</strong> 
+          <span style="color: ${status === 'berhasil' ? '#155724' : status === 'expired' ? '#721c24' : '#856404'};">
+            ${config.description}
+          </span>
+        </p>
+        <p style="margin: 8px 0;"><strong>Reference ID:</strong> <code>${data.reference_id}</code></p>
+        ${data.amount ? `<p style="margin: 8px 0;"><strong>Amount:</strong> Rp ${parseInt(data.amount).toLocaleString()}</p>` : ''}
+        ${data.paid_at ? `<p style="margin: 8px 0;"><strong>Waktu Bayar:</strong> ${new Date(data.paid_at).toLocaleString('id-ID')}</p>` : ''}
+        ${data.received_at ? `<p style="margin: 8px 0;"><strong>Callback Received:</strong> ${new Date(data.received_at).toLocaleString('id-ID')}</p>` : ''}
+      </div>
+      
+      ${status === 'berhasil' ? `
+        <div style="background: #155724; color: white; padding: 20px; border-radius: 5px; text-align: center; margin-top: 15px;">
+          <h4 style="margin: 0 0 10px 0;">🎉 Pembayaran Berhasil!</h4>
+          <p style="margin: 0;">Terima kasih telah melakukan pembayaran</p>
+          ${data.amount ? `<p style="margin: 10px 0 0 0; font-size: 20px; font-weight: bold;">Rp ${parseInt(data.amount).toLocaleString()}</p>` : ''}
+        </div>
+      ` : ''}
+      
+      ${status === 'pending' ? `
+        <div style="background: #d1ecf1; padding: 15px; border-radius: 5px; border-left: 4px solid #0c5460; margin-top: 15px;">
+          <p style="margin: 0; color: #0c5460; font-size: 14px;">
+            <strong>🔄 Real-time Active</strong> - System akan update otomatis
+          </p>
+        </div>
+        <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+          <p style="margin: 0; font-size: 13px; color: #856404;">
+            <strong>Last check:</strong> <span id="lastCheck">${new Date().toLocaleTimeString()}</span>
+          </p>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function showSuccessCelebration(data) {
+  const statusDisplay = document.getElementById("statusDisplay");
+  if (statusDisplay) {
+    statusDisplay.innerHTML += `
+      <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 25px; border-radius: 10px; margin-top: 15px; text-align: center; animation: fadeIn 0.5s ease-in;">
+        <h3 style="margin: 0 0 15px 0; font-size: 24px;">🎉 SELAMAT! 🎉</h3>
+        <p style="margin: 0 0 10px 0; font-size: 18px;">Pembayaran Anda telah berhasil</p>
+        ${data.amount ? `<p style="margin: 0; font-size: 22px; font-weight: bold;">Rp ${parseInt(data.amount).toLocaleString()}</p>` : ''}
+        <p style="margin: 15px 0 0 0; font-size: 14px; opacity: 0.9;">Transaksi selesai secara real-time</p>
+      </div>
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+    `;
   }
-  console.log('⏸️ Auto refresh stopped');
 }
 
 function showError(message, data = null) {
@@ -168,10 +282,7 @@ function showError(message, data = null) {
   document.getElementById("result").innerHTML = errorHtml;
 }
 
-// Global functions
-window.refreshNow = refreshNow;
-window.stopAutoRefresh = stopAutoRefresh;
-window.initPayment = initPayment;
+// Stop polling ketika page unload
+window.addEventListener('beforeunload', stopPolling);
 
-// Stop refresh ketika page unload
-window.addEventListener('beforeunload', stopAutoRefresh);
+window.initPayment = initPayment;
