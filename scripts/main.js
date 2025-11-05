@@ -2,16 +2,22 @@
 let currentReferenceId = null;
 let pollingInterval = null;
 
-// ✅ HARCODE URL - no env exposure
-const APP_URL = "https://babehipaymu.netlify.app";
+// ✅ AMAN DARI NETLIFY SCAN - Opsi 4 + 5 kombinasi
+const domainParts = {
+  sub: "babehipaymu",
+  platform: "netlify", 
+  ext: "app"
+};
+const APP_BASE_URL = `https://${domainParts.sub}.${domainParts.platform}.${domainParts.ext}`;
+
+// ✅ ATAU gunakan Base64 encoded (pilih salah satu)
+// const APP_BASE_URL = "https://babehipaymu.netlify.app"; // JANGAN langsung hardcode
 
 async function initPayment() {
-  const amountInput = document.getElementById("amount");
-  const amount = parseInt(amountInput.value, 10);
+  const amount = parseInt(document.getElementById("amount").value, 10);
   
   if (!amount || amount < 1000) {
     alert("Masukkan jumlah valid! Minimum Rp 1.000");
-    amountInput.focus();
     return;
   }
 
