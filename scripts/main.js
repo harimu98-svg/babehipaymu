@@ -95,7 +95,7 @@ async function initPayment() {
   }
 }
 
-// ✅ POLLING SYSTEM - Check callback data
+// ✅ POLLING SYSTEM - Check status via callback.js
 function startPolling(referenceId) {
   stopPolling();
   
@@ -117,17 +117,12 @@ function stopPolling() {
 
 async function checkCallbackStatus(referenceId) {
   try {
-    // ✅ POLLING: Cek apakah callback sudah datang untuk referenceId ini
-    const res = await fetch("/.netlify/functions/checkCallbackStatus", {
+    // ✅ POLLING: Cek status via callback.js
+    const res = await fetch("/.netlify/functions/callback/check-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ referenceId }),
     });
-    
-    if (!res.ok) {
-      console.log('Check status function not available yet');
-      return;
-    }
     
     const data = await res.json();
     console.log("🔄 Polling result:", data);
