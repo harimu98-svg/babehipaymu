@@ -7,6 +7,77 @@ if (typeof global.paymentCallbacks === 'undefined') {
 const paymentCallbacks = global.paymentCallbacks;
 
 exports.handler = async function(event, context) {
+  // ✅ HANDLE CHECK STATUS REQUEST (Polling dari frontend)
+  if (event.httpMethod === 'POST' && event.path.includes('/check-status')) {
+    try {
+      const { referenceId } = JSON.parse(event.body || "{}");
+
+      if (!referenceId) {
+        return { 
+          statusCode: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          body: JSON.stringify({ error: "Missing referenceId" }) 
+        };
+      }
+
+      console.log(`🔍 Checking status for: ${referenceId}`);
+      
+      // Check callback data dari shared storage
+      const callbackData = paymentCallbacks.get(referenceId);
+      
+      if (callbackData) {
+        console.log(`✅ Status found: ${referenceId} = ${callbackData.status}`);
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          body: JSON.stringify({
+            exists: true,
+            source: 'callback',
+            status: callbackData.status,
+            status_code: callbackData.status_code,
+            reference_id: callbackData.reference_id,
+            amount: callbackData.amount,
+            paid_at: callbackData.paid_at,
+            received_at: callbackData.received_at,
+            trx_id: callbackData.trx_id
+          })
+        };
+      } else {
+        console.log(`⏳ No callback yet: ${referenceId}`);
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          body: JSON.stringify({
+            exists: false,
+            reference_id: referenceId,
+            status: 'pending'
+          })
+        };
+      }
+
+    } catch (err) {
+      console.error("❌ Check status error:", err);
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: err.message })
+      };
+    }
+  }
+
+  // ✅ HANDLE CALLBACK REQUEST (Dari iPaymu)
   try {
     console.log("📨 Callback Received - Method:", event.httpMethod);
     console.log("📨 Callback Received - Body:", event.body);
@@ -62,6 +133,7 @@ exports.handler = async function(event, context) {
         processed: true
       });
       console.log(`💾 Callback saved: ${callbackData.reference_id} = ${callbackData.status}`);
+      console.log(`📊 Total stored: ${paymentCallbacks.size}`);
     }
 
     // 🎯 Business logic
@@ -77,7 +149,6 @@ exports.handler = async function(event, context) {
       body: JSON.stringify({ 
         success: true, 
         message: "Callback processed successfully",
-        // ✅ KIRIM DATA LENGKAP untuk frontend
         data: callbackData,
         reference_id: callbackData.reference_id,
         status: callbackData.status,
