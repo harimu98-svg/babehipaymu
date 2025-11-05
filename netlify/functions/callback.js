@@ -1,90 +1,66 @@
 // netlify/functions/callback.js
 
-// Global storage
+// ✅ GLOBAL STORAGE untuk polling
 if (typeof global.paymentCallbacks === 'undefined') {
   global.paymentCallbacks = new Map();
 }
 const paymentCallbacks = global.paymentCallbacks;
 
 exports.handler = async function(event, context) {
-  // ✅ HANDLE CHECK STATUS REQUEST (Polling dari frontend)
-  if (event.httpMethod === 'POST' && event.path.includes('/check-status')) {
+  // ✅ HANDLE STATUS CHECK REQUEST (untuk polling)
+  if (event.httpMethod === 'POST' && event.body) {
     try {
-      const { referenceId } = JSON.parse(event.body || "{}");
-
-      if (!referenceId) {
-        return { 
-          statusCode: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          },
-          body: JSON.stringify({ error: "Missing referenceId" }) 
-        };
-      }
-
-      console.log(`🔍 Checking status for: ${referenceId}`);
+      const body = JSON.parse(event.body);
       
-      // Check callback data dari shared storage
-      const callbackData = paymentCallbacks.get(referenceId);
-      
-      if (callbackData) {
-        console.log(`✅ Status found: ${referenceId} = ${callbackData.status}`);
-        return {
-          statusCode: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          },
-          body: JSON.stringify({
-            exists: true,
-            source: 'callback',
-            status: callbackData.status,
-            status_code: callbackData.status_code,
-            reference_id: callbackData.reference_id,
-            amount: callbackData.amount,
-            paid_at: callbackData.paid_at,
-            received_at: callbackData.received_at,
-            trx_id: callbackData.trx_id
-          })
-        };
-      } else {
-        console.log(`⏳ No callback yet: ${referenceId}`);
-        return {
-          statusCode: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          },
-          body: JSON.stringify({
-            exists: false,
-            reference_id: referenceId,
-            status: 'pending'
-          })
-        };
+      if (body.referenceId && body.action === 'checkStatus') {
+        const callbackData = paymentCallbacks.get(body.referenceId);
+        
+        if (callbackData) {
+          return {
+            statusCode: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({
+              exists: true,
+              status: callbackData.status,
+              status_code: callbackData.status_code,
+              reference_id: callbackData.reference_id,
+              amount: callbackData.amount,
+              paid_at: callbackData.paid_at,
+              received_at: callbackData.received_at,
+              trx_id: callbackData.trx_id
+            })
+          };
+        } else {
+          return {
+            statusCode: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({
+              exists: false,
+              reference_id: body.referenceId,
+              status: 'pending'
+            })
+          };
+        }
       }
-
-    } catch (err) {
-      console.error("❌ Check status error:", err);
-      return {
-        statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ error: err.message })
-      };
+    } catch (e) {
+      // Continue to callback processing
     }
   }
 
-  // ✅ HANDLE CALLBACK REQUEST (Dari iPaymu)
+  // ✅ HANDLE IPAYMU CALLBACK
   try {
-    console.log("📨 Callback Received - Method:", event.httpMethod);
+    console.log("📨 Callback Received - Headers:", JSON.stringify(event.headers, null, 2));
     console.log("📨 Callback Received - Body:", event.body);
 
     let callbackData;
 
-    // Handle form-data
+    // Handle form-data (production)
     if (event.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
       const params = new URLSearchParams(event.body);
       callbackData = {
@@ -110,7 +86,7 @@ exports.handler = async function(event, context) {
         source: 'ipaymu_production'
       };
     } 
-    // Handle JSON
+    // Handle JSON (simulation)
     else if (event.headers['content-type']?.includes('application/json')) {
       callbackData = JSON.parse(event.body);
       callbackData.source = 'ipaymu_simulation';
@@ -125,18 +101,19 @@ exports.handler = async function(event, context) {
 
     console.log("💳 iPaymu Callback Parsed:", JSON.stringify(callbackData, null, 2));
 
-    // ✅ Simpan ke storage
+    // ✅ STORE FOR POLLING
     if (callbackData.reference_id) {
       paymentCallbacks.set(callbackData.reference_id, {
         ...callbackData,
         received_at: new Date().toISOString(),
         processed: true
       });
-      console.log(`💾 Callback saved: ${callbackData.reference_id} = ${callbackData.status}`);
-      console.log(`📊 Total stored: ${paymentCallbacks.size}`);
+      
+      console.log(`💾 Callback stored: ${callbackData.reference_id} = ${callbackData.status}`);
+      console.log(`📊 Total callbacks stored: ${paymentCallbacks.size}`);
     }
 
-    // 🎯 Business logic
+    // ✅ BUSINESS LOGIC
     await processPaymentCallback(callbackData);
 
     return { 
@@ -149,11 +126,9 @@ exports.handler = async function(event, context) {
       body: JSON.stringify({ 
         success: true, 
         message: "Callback processed successfully",
-        data: callbackData,
         reference_id: callbackData.reference_id,
         status: callbackData.status,
         amount: callbackData.amount,
-        paid_at: callbackData.paid_at,
         stored: true,
         timestamp: new Date().toISOString()
       }) 
@@ -168,20 +143,30 @@ exports.handler = async function(event, context) {
       },
       body: JSON.stringify({ 
         error: "Callback processing failed",
-        message: err.message,
-        timestamp: new Date().toISOString()
+        message: err.message
       }) 
     };
   }
 };
 
+// ✅ BUSINESS LOGIC FUNCTION
 async function processPaymentCallback(callbackData) {
-  const { reference_id, status, amount } = callbackData;
-  console.log(`🎯 Processing: ${reference_id} - ${status} - ${amount}`);
+  const { reference_id, status, amount, paid_at } = callbackData;
+  
+  console.log(`🎯 Processing business logic: ${reference_id} - ${status} - ${amount}`);
+  
+  // TODO: Implement your business logic
+  // - Update database
+  // - Send email notification  
+  // - Update inventory
+  // - etc.
   
   if (status === 'berhasil') {
-    console.log(`💰 Payment successful: ${reference_id} - Amount: ${amount}`);
+    console.log(`💰 Payment successful: ${reference_id} - Amount: ${amount} - Paid at: ${paid_at}`);
+    // await sendSuccessEmail(reference_id);
+    // await updateOrderStatus(reference_id, 'paid');
   }
   
+  console.log(`✅ Business logic executed for: ${reference_id}`);
   return true;
 }
