@@ -3,7 +3,7 @@ let currentReferenceId = null;
 let pollingInterval = null;
 
 // ✅ HARCODE URL - no env exposure
-const SITE_URL = "https://babehipaymu.netlify.app";
+const APP_BASE_URL = "https://babehipaymu.netlify.app";
 
 async function initPayment() {
   const amountInput = document.getElementById("amount");
