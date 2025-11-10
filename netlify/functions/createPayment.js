@@ -20,7 +20,7 @@ exports.handler = async function(event, context) {
 
   // Validasi environment variables
   if (!VA || !APIKEY || !IPAYMU_URL) {
-    console.error("❌ Missing environment variables");
+    console.error("❌ Missing environment variables"); 
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
